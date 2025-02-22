@@ -65,7 +65,7 @@
       <label for="discountCode">Discount Code (Optional):</label>
       <input type="text" id="discountCode" placeholder="Enter discount code">
       
-      <h3>Customer Information</h3>
+      <h3>Customer Information (Optional)</h3>
       <label for="email">Email:</label>
       <input type="email" id="email" placeholder="Enter customer email">
       
@@ -153,18 +153,15 @@
         const zip = document.getElementById('zip').value;
         const country = document.getElementById('country').value;
         
-        finalPermalink += `&email=${encodeURIComponent(email)}&shipping_address[first_name]=${encodeURIComponent(firstName)}&shipping_address[last_name]=${encodeURIComponent(lastName)}&shipping_address[address1]=${encodeURIComponent(address)}&shipping_address[city]=${encodeURIComponent(city)}&shipping_address[zip]=${encodeURIComponent(zip)}&shipping_address[country]=${encodeURIComponent(country)}`;
+        if (email) finalPermalink += `&email=${encodeURIComponent(email)}`;
+        if (firstName) finalPermalink += `&shipping_address[first_name]=${encodeURIComponent(firstName)}`;
+        if (lastName) finalPermalink += `&shipping_address[last_name]=${encodeURIComponent(lastName)}`;
+        if (address) finalPermalink += `&shipping_address[address1]=${encodeURIComponent(address)}`;
+        if (city) finalPermalink += `&shipping_address[city]=${encodeURIComponent(city)}`;
+        if (zip) finalPermalink += `&shipping_address[zip]=${encodeURIComponent(zip)}`;
+        if (country) finalPermalink += `&shipping_address[country]=${encodeURIComponent(country)}`;
 
-        const permalinkDiv = document.getElementById('permalink');
-        permalinkDiv.textContent = `Generated Checkout Link: ${finalPermalink}`;
-        
-        const copyButton = document.getElementById('copyButton');
-        copyButton.style.display = 'inline';
-        copyButton.onclick = function() {
-          navigator.clipboard.writeText(finalPermalink).then(() => {
-            alert('Permalink copied to clipboard!');
-          });
-        };
+        document.getElementById('permalink').textContent = `Generated Checkout Link: ${finalPermalink}`;
       }
     });
   </script>
