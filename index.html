@@ -162,6 +162,14 @@
         if (country) finalPermalink += `&shipping_address[country]=${encodeURIComponent(country)}`;
 
         document.getElementById('permalink').textContent = `Generated Checkout Link: ${finalPermalink}`;
+        
+        const copyButton = document.getElementById('copyButton');
+        copyButton.style.display = 'inline';
+        copyButton.onclick = function() {
+          navigator.clipboard.writeText(finalPermalink).then(() => {
+            alert('Permalink copied to clipboard!');
+          });
+        };
       }
     });
   </script>
