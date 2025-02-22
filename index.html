@@ -155,7 +155,16 @@
         
         finalPermalink += `&email=${encodeURIComponent(email)}&shipping_address[first_name]=${encodeURIComponent(firstName)}&shipping_address[last_name]=${encodeURIComponent(lastName)}&shipping_address[address1]=${encodeURIComponent(address)}&shipping_address[city]=${encodeURIComponent(city)}&shipping_address[zip]=${encodeURIComponent(zip)}&shipping_address[country]=${encodeURIComponent(country)}`;
 
-        document.getElementById('permalink').textContent = `Generated Checkout Link: ${finalPermalink}`;
+        const permalinkDiv = document.getElementById('permalink');
+        permalinkDiv.textContent = `Generated Checkout Link: ${finalPermalink}`;
+        
+        const copyButton = document.getElementById('copyButton');
+        copyButton.style.display = 'inline';
+        copyButton.onclick = function() {
+          navigator.clipboard.writeText(finalPermalink).then(() => {
+            alert('Permalink copied to clipboard!');
+          });
+        };
       }
     });
   </script>
