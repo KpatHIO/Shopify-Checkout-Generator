@@ -8,18 +8,39 @@
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      max-width: 700px;
+      margin: auto;
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+    h2 {
+      margin-top: 0;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+      font-size: 0.9rem;
     }
     input {
       padding: 8px;
-      margin: 8px 0;
+      margin: 4px 0 10px 0;
       width: 100%;
+      box-sizing: border-box;
     }
     button {
-      padding: 10px;
+      padding: 10px 16px;
       background-color: #4CAF50;
       color: white;
       border: none;
       cursor: pointer;
+      border-radius: 4px;
+      font-size: 0.95rem;
     }
     button:hover {
       background-color: #45a049;
@@ -29,22 +50,31 @@
       font-weight: bold;
       word-wrap: break-word;
     }
-    .container {
-      max-width: 600px;
-      margin: auto;
-    }
     .product-input {
-      margin-bottom: 20px;
+      margin-bottom: 16px;
+      padding: 10px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      background: #fafafa;
     }
     .button-container {
       display: flex;
-      justify-content: space-between;
+      gap: 10px;
+      margin-top: 10px;
+      flex-wrap: wrap;
     }
     #addProductButton {
       background-color: #008CBA;
     }
     #addProductButton:hover {
       background-color: #007BB5;
+    }
+    .section-title {
+      margin-top: 20px;
+      font-size: 1.05rem;
+      font-weight: bold;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 4px;
     }
   </style>
 </head>
@@ -55,24 +85,49 @@
       <div id="productInputContainer">
         <div class="product-input">
           <label for="productUrl1">Product 1 URL:</label>
-          <input type="text" id="productUrl1" placeholder="Enter Shopify product URL here" required>
+          <input type="text" id="productUrl1" placeholder="Paste Shopify product URL with ?variant=..." required>
 
           <label for="quantity1">Quantity:</label>
-          <input type="number" id="quantity1" placeholder="Enter quantity" required>
+          <input type="number" id="quantity1" min="1" value="1" required>
         </div>
       </div>
 
-      <label for="discountCode">Discount Code (Optional):</label>
-      <input type="text" id="discountCode" placeholder="Enter discount code">
+      <button type="button" id="addProductButton">Add Another Product</button>
+
+      <div class="section-title">Optional: Discount</div>
+      <label for="discountCode">Discount Code:</label>
+      <input type="text" id="discountCode" placeholder="Enter discount code (optional)">
+
+      <div class="section-title">Optional: Shipping Address</div>
+
+      <label for="firstName">First Name:</label>
+      <input type="text" id="firstName" placeholder="e.g. Lisa">
+
+      <label for="lastName">Last Name:</label>
+      <input type="text" id="lastName" placeholder="e.g. Gardiner">
+
+      <label for="address1">Address Line 1:</label>
+      <input type="text" id="address1" placeholder="e.g. 10 Stringybark Pl">
+
+      <label for="city">City:</label>
+      <input type="text" id="city" placeholder="e.g. Millingandi">
+
+      <label for="province">State / Province:</label>
+      <input type="text" id="province" placeholder="e.g. NSW">
+
+      <label for="zip">Postcode:</label>
+      <input type="text" id="zip" placeholder="e.g. 2549">
+
+      <label for="country">Country Code:</label>
+      <input type="text" id="country" placeholder="e.g. AU">
 
       <div class="button-container">
-        <button type="submit">Generate Permalink</button>
-        <button type="button" id="addProductButton">Add Another Product</button>
+        <button type="submit">Generate Checkout Link</button>
+        <button type="button" id="copyButton" style="display:none;">Copy Link</button>
       </div>
     </form>
 
     <div id="permalink"></div>
-    <button id="copyButton" style="display:none;">Copy Permalink</button>
   </div>
 
   <script>
@@ -85,9 +140,9 @@
       newProductInput.classList.add('product-input');
       newProductInput.innerHTML = `
         <label for="productUrl${productCount}">Product ${productCount} URL:</label>
-        <input type="text" id="productUrl${productCount}" placeholder="Enter Shopify product URL here" required>
+        <input type="text" id="productUrl${productCount}" placeholder="Paste Shopify product URL with ?variant=..." required>
         <label for="quantity${productCount}">Quantity:</label>
-        <input type="number" id="quantity${productCount}" placeholder="Enter quantity" required>
+        <input type="number" id="quantity${productCount}" min="1" value="1" required>
       `;
       productInputContainer.appendChild(newProductInput);
     });
@@ -97,11 +152,26 @@
       let cartPermalink = '';
       let allValid = true;
 
+      // Build cart part: variant:qty,variant:qty,...
       for (let i = 1; i <= productCount; i++) {
-        const productUrl = document.getElementById(`productUrl${i}`).value;
-        const quantity = document.getElementById(`quantity${i}`).value;
-        const url = new URL(productUrl);
-        const variantId = url.searchParams.get('variant');
+        const productUrl = document.getElementById(`productUrl${i}`).value.trim();
+        const quantity = document.getElementById(`quantity${i}`).value.trim();
+
+        if (!productUrl || !quantity) {
+          alert(`Missing product URL or quantity for Product ${i}.`);
+          allValid = false;
+          break;
+        }
+
+        let variantId;
+        try {
+          const url = new URL(productUrl);
+          variantId = url.searchParams.get('variant');
+        } catch (e) {
+          alert(`Invalid URL format for Product ${i}. Make sure it starts with https://`);
+          allValid = false;
+          break;
+        }
 
         if (variantId && quantity) {
           if (cartPermalink !== '') {
@@ -109,30 +179,75 @@
           }
           cartPermalink += `${variantId}:${quantity}`;
         } else {
-          alert(`Invalid product URL or missing variant ID for Product ${i}.`);
+          alert(`Invalid product URL or missing ?variant= for Product ${i}.`);
           allValid = false;
           break;
         }
       }
 
-      if (allValid) {
-        const shopUrl = new URL(document.getElementById('productUrl1').value).host;
-        let finalPermalink = `https://${shopUrl}/cart/${cartPermalink}`;
-        const discountCode = document.getElementById('discountCode').value;
-        if (discountCode) {
-          finalPermalink += `?discount=${encodeURIComponent(discountCode)}`;
-        }
+      if (!allValid) return;
 
-        document.getElementById('permalink').textContent = `Generated Checkout Link: ${finalPermalink}`;
-        
-        const copyButton = document.getElementById('copyButton');
-        copyButton.style.display = 'inline';
-        copyButton.onclick = function() {
-          navigator.clipboard.writeText(finalPermalink).then(() => {
-            alert('Permalink copied to clipboard!');
-          });
-        };
+      // Use the first product URL to get the shop domain
+      const firstUrl = new URL(document.getElementById('productUrl1').value.trim());
+      const shopUrl = firstUrl.host;
+      let finalPermalink = `https://${shopUrl}/cart/${cartPermalink}`;
+
+      // Build query parameters (discount + shipping address)
+      const queryParams = [];
+
+      const discountCode = document.getElementById('discountCode').value.trim();
+      if (discountCode) {
+        queryParams.push(`discount=${encodeURIComponent(discountCode)}`);
       }
+
+      const firstName = document.getElementById('firstName').value.trim();
+      const lastName  = document.getElementById('lastName').value.trim();
+      const address1  = document.getElementById('address1').value.trim();
+      const city      = document.getElementById('city').value.trim();
+      const province  = document.getElementById('province').value.trim();
+      const zip       = document.getElementById('zip').value.trim();
+      const country   = document.getElementById('country').value.trim();
+
+      if (firstName) {
+        queryParams.push(`checkout[shipping_address][first_name]=${encodeURIComponent(firstName)}`);
+      }
+      if (lastName) {
+        queryParams.push(`checkout[shipping_address][last_name]=${encodeURIComponent(lastName)}`);
+      }
+      if (address1) {
+        queryParams.push(`checkout[shipping_address][address1]=${encodeURIComponent(address1)}`);
+      }
+      if (city) {
+        queryParams.push(`checkout[shipping_address][city]=${encodeURIComponent(city)}`);
+      }
+      if (province) {
+        queryParams.push(`checkout[shipping_address][province]=${encodeURIComponent(province)}`);
+      }
+      if (zip) {
+        queryParams.push(`checkout[shipping_address][zip]=${encodeURIComponent(zip)}`);
+      }
+      if (country) {
+        queryParams.push(`checkout[shipping_address][country]=${encodeURIComponent(country)}`);
+      }
+
+      if (queryParams.length > 0) {
+        finalPermalink += `?` + queryParams.join('&');
+      }
+
+      // Show result
+      const permalinkDiv = document.getElementById('permalink');
+      permalinkDiv.textContent = `Generated Checkout Link: ${finalPermalink}`;
+
+      // Enable copy button
+      const copyButton = document.getElementById('copyButton');
+      copyButton.style.display = 'inline-block';
+      copyButton.onclick = function() {
+        navigator.clipboard.writeText(finalPermalink).then(() => {
+          alert('Checkout link copied to clipboard!');
+        }).catch(() => {
+          alert('Could not copy to clipboard. Please copy manually.');
+        });
+      };
     });
   </script>
 </body>
