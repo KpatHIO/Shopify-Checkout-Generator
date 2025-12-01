@@ -27,7 +27,8 @@
       font-weight: bold;
       font-size: 0.9rem;
     }
-    input {
+    input[type="text"],
+    input[type="number"] {
       padding: 8px;
       margin: 4px 0 10px 0;
       width: 100%;
@@ -76,6 +77,12 @@
       border-bottom: 1px solid #ddd;
       padding-bottom: 4px;
     }
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -94,6 +101,14 @@
 
       <button type="button" id="addProductButton">Add Another Product</button>
 
+      <div class="section-title">Pickup / Collection</div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="includeCollection">
+        <label for="includeCollection" style="margin-top:0;font-weight:normal;">
+          Include <strong>Customer Collection</strong> product (variant ID <code>61962582720671</code>) to remove delivery charge
+        </label>
+      </div>
+
       <div class="section-title">Optional: Discount</div>
       <label for="discountCode">Discount Code:</label>
       <input type="text" id="discountCode" placeholder="Enter discount code (optional)">
@@ -101,22 +116,22 @@
       <div class="section-title">Optional: Shipping Address</div>
 
       <label for="firstName">First Name:</label>
-      <input type="text" id="firstName" value="">
+      <input type="text" id="firstName" value="John">
 
       <label for="lastName">Last Name:</label>
-      <input type="text" id="lastName" value="">
+      <input type="text" id="lastName" value="Smith">
 
       <label for="address1">Address Line 1:</label>
-      <input type="text" id="address1" value="">
+      <input type="text" id="address1" value="10 Example St">
 
       <label for="city">City:</label>
-      <input type="text" id="city" value="">
+      <input type="text" id="city" value="Sydney">
 
       <label for="province">State / Province:</label>
-      <input type="text" id="province" value="">
+      <input type="text" id="province" value="NSW">
 
       <label for="zip">Postcode:</label>
-      <input type="text" id="zip" value="">
+      <input type="text" id="zip" value="2000">
 
       <label for="country">Country Code:</label>
       <input type="text" id="country" value="AU">
@@ -132,6 +147,7 @@
 
   <script>
     let productCount = 1;
+    const collectionVariantId = '61962582720671';
 
     document.getElementById('addProductButton').addEventListener('click', function() {
       productCount++;
@@ -186,6 +202,16 @@
       }
 
       if (!allValid) return;
+
+      // Include Collection product if checkbox ticked
+      const includeCollection = document.getElementById('includeCollection').checked;
+      if (includeCollection) {
+        if (cartPermalink !== '') {
+          cartPermalink += ',';
+        }
+        // Always quantity 1 for the collection product
+        cartPermalink += `${collectionVariantId}:1`;
+      }
 
       // Use the first product URL to get the shop domain
       const firstUrl = new URL(document.getElementById('productUrl1').value.trim());
