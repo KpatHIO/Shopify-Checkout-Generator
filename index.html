@@ -83,6 +83,12 @@
       gap: 8px;
       margin-top: 10px;
     }
+    .hint {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: -6px;
+      margin-bottom: 6px;
+    }
   </style>
 </head>
 <body>
@@ -105,15 +111,20 @@
       <div class="checkbox-row">
         <input type="checkbox" id="includeCollection">
         <label for="includeCollection" style="margin-top:0;font-weight:normal;">
-          Include <strong>Customer Collection</strong> product (variant ID <code>61962582720671</code>) to remove delivery charge
+          Include <strong>Customer Collection</strong> product (variant ID <code>61962582720671</code>)
         </label>
       </div>
 
       <div class="section-title">Optional: Discount</div>
       <label for="discountCode">Discount Code:</label>
-      <input type="text" id="discountCode" placeholder="Enter discount code (optional)">
+      <input type="text" id="discountCode">
 
       <div class="section-title">Optional: Shipping Address</div>
+
+      <!-- Google Maps / Places lookup bar -->
+      <label for="autocompleteAddress">Search Address (Google Maps):</label>
+      <input type="text" id="autocompleteAddress" placeholder="Start typing address...">
+      <div class="hint">Select an address from the dropdown – fields below will auto-fill.</div>
 
       <label for="firstName">First Name:</label>
       <input type="text" id="firstName">
@@ -131,10 +142,10 @@
       <input type="text" id="province">
 
       <label for="zip">Postcode:</label>
-      <input type="text" id="zip" value="">
+      <input type="text" id="zip">
 
       <label for="country">Country Code:</label>
-      <input type="text" id="country" value="AU">
+      <input type="text" id="country">
 
       <div class="button-container">
         <button type="submit">Generate Checkout Link</button>
@@ -148,6 +159,45 @@
   <script>
     let productCount = 1;
     const collectionVariantId = '61962582720671';
+    let autocomplete; // Google Places Autocomplete instance
+
+    // Initialise Google Places autocomplete on the address search field
+    function initAutocomplete() {
+      const input = document.getElementById('autocompleteAddress');
+      if (!input || !window.google || !google.maps || !google.maps.places) return;
+
+      autocomplete = new google.maps.places.Autocomplete(input, {
+        types: ['geocode'],
+        // limit to Australia – remove or change if you want other countries
+        componentRestrictions: { country: ['au'] }
+      });
+
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        if (!place || !place.address_components) return;
+
+        const components = {};
+        place.address_components.forEach(c => {
+          c.types.forEach(t => {
+            components[t] = c.long_name;
+            components[t + '_short'] = c.short_name;
+          });
+        });
+
+        const streetNumber = components.street_number || '';
+        const route = components.route || '';
+        const locality = components.locality || components.sublocality || '';
+        const stateShort = components.administrative_area_level_1_short || components.administrative_area_level_1 || '';
+        const postCode = components.postal_code || '';
+        const countryShort = components.country_short || components.country || '';
+
+        document.getElementById('address1').value = (streetNumber + ' ' + route).trim();
+        document.getElementById('city').value = locality;
+        document.getElementById('province').value = stateShort;
+        document.getElementById('zip').value = postCode;
+        document.getElementById('country').value = countryShort;
+      });
+    }
 
     document.getElementById('addProductButton').addEventListener('click', function() {
       productCount++;
@@ -168,113 +218,71 @@
       let cartPermalink = '';
       let allValid = true;
 
-      // Build cart part: variant:qty,variant:qty,...
+      // Build cart variant list
       for (let i = 1; i <= productCount; i++) {
         const productUrl = document.getElementById(`productUrl${i}`).value.trim();
         const quantity = document.getElementById(`quantity${i}`).value.trim();
-
-        if (!productUrl || !quantity) {
-          alert(`Missing product URL or quantity for Product ${i}.`);
-          allValid = false;
-          break;
-        }
 
         let variantId;
         try {
           const url = new URL(productUrl);
           variantId = url.searchParams.get('variant');
-        } catch (e) {
-          alert(`Invalid URL format for Product ${i}. Make sure it starts with https://`);
+        } catch {
+          alert(`Invalid URL for Product ${i}`);
           allValid = false;
           break;
         }
 
         if (variantId && quantity) {
-          if (cartPermalink !== '') {
-            cartPermalink += ',';
-          }
-          cartPermalink += `${variantId}:${quantity}`;
+          cartPermalink += (cartPermalink ? ',' : '') + `${variantId}:${quantity}`;
         } else {
-          alert(`Invalid product URL or missing ?variant= for Product ${i}.`);
+          alert(`Invalid product or missing variant for Product ${i}`);
           allValid = false;
           break;
         }
       }
-
       if (!allValid) return;
 
-      // Include Collection product if checkbox ticked
-      const includeCollection = document.getElementById('includeCollection').checked;
-      if (includeCollection) {
-        if (cartPermalink !== '') {
-          cartPermalink += ',';
-        }
-        // Always quantity 1 for the collection product
-        cartPermalink += `${collectionVariantId}:1`;
+      // Include collection item
+      if (document.getElementById('includeCollection').checked) {
+        cartPermalink += (cartPermalink ? ',' : '') + `${collectionVariantId}:1`;
       }
 
-      // Use the first product URL to get the shop domain
       const firstUrl = new URL(document.getElementById('productUrl1').value.trim());
       const shopUrl = firstUrl.host;
       let finalPermalink = `https://${shopUrl}/cart/${cartPermalink}`;
 
-      // Build query parameters (discount + shipping address)
-      const queryParams = [];
+      // Build optional query parameters
+      const q = [];
+      const fields = [
+        ['first_name', 'firstName'],
+        ['last_name', 'lastName'],
+        ['address1', 'address1'],
+        ['city', 'city'],
+        ['province', 'province'],
+        ['zip', 'zip'],
+        ['country', 'country']
+      ];
 
-      const discountCode = document.getElementById('discountCode').value.trim();
-      if (discountCode) {
-        queryParams.push(`discount=${encodeURIComponent(discountCode)}`);
-      }
+      fields.forEach(([param, id]) => {
+        const v = document.getElementById(id).value.trim();
+        if (v) q.push(`checkout[shipping_address][${param}]=${encodeURIComponent(v)}`);
+      });
 
-      const firstName = document.getElementById('firstName').value.trim();
-      const lastName  = document.getElementById('lastName').value.trim();
-      const address1  = document.getElementById('address1').value.trim();
-      const city      = document.getElementById('city').value.trim();
-      const province  = document.getElementById('province').value.trim();
-      const zip       = document.getElementById('zip').value.trim();
-      const country   = document.getElementById('country').value.trim();
+      const discount = document.getElementById('discountCode').value.trim();
+      if (discount) q.push(`discount=${encodeURIComponent(discount)}`);
 
-      if (firstName) {
-        queryParams.push(`checkout[shipping_address][first_name]=${encodeURIComponent(firstName)}`);
-      }
-      if (lastName) {
-        queryParams.push(`checkout[shipping_address][last_name]=${encodeURIComponent(lastName)}`);
-      }
-      if (address1) {
-        queryParams.push(`checkout[shipping_address][address1]=${encodeURIComponent(address1)}`);
-      }
-      if (city) {
-        queryParams.push(`checkout[shipping_address][city]=${encodeURIComponent(city)}`);
-      }
-      if (province) {
-        queryParams.push(`checkout[shipping_address][province]=${encodeURIComponent(province)}`);
-      }
-      if (zip) {
-        queryParams.push(`checkout[shipping_address][zip]=${encodeURIComponent(zip)}`);
-      }
-      if (country) {
-        queryParams.push(`checkout[shipping_address][country]=${encodeURIComponent(country)}`);
-      }
+      if (q.length > 0) finalPermalink += '?' + q.join('&');
 
-      if (queryParams.length > 0) {
-        finalPermalink += `?` + queryParams.join('&');
-      }
+      document.getElementById('permalink').textContent = `Generated Checkout Link: ${finalPermalink}`;
 
-      // Show result
-      const permalinkDiv = document.getElementById('permalink');
-      permalinkDiv.textContent = `Generated Checkout Link: ${finalPermalink}`;
-
-      // Enable copy button
       const copyButton = document.getElementById('copyButton');
       copyButton.style.display = 'inline-block';
-      copyButton.onclick = function() {
-        navigator.clipboard.writeText(finalPermalink).then(() => {
-          alert('Checkout link copied to clipboard!');
-        }).catch(() => {
-          alert('Could not copy to clipboard. Please copy manually.');
-        });
-      };
+      copyButton.onclick = () => navigator.clipboard.writeText(finalPermalink);
     });
   </script>
+
+  <!-- Google Maps JavaScript API with Places library -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDGDDp4V6yH7-1Sq5EfSgRS6cTWkOuqluo&libraries=places&callback=initAutocomplete" async defer></script>
 </body>
 </html>
